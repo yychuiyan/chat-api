@@ -37,19 +37,29 @@ const TOP_K = 4; // 检索返回的切片数
 const INDEX_TTL = 10 * 60 * 1000; // 索引内存缓存 10 分钟
 
 let indexCache = { at: 0, chunks: [] };
+let indexLoading = null;
 
 /* ---------------- 索引加载 ---------------- */
 async function loadIndex() {
   if (indexCache.chunks.length && Date.now() - indexCache.at < INDEX_TTL) {
     return indexCache.chunks;
   }
-  const resp = await fetch(INDEX_URL, { signal: AbortSignal.timeout(15000) });
-  if (!resp.ok) throw new Error(`索引下载失败 HTTP ${resp.status}`);
-  const data = await resp.json();
-  indexCache = { at: Date.now(), chunks: data.chunks || [] };
-  console.log(`[chat] 索引已加载 ${indexCache.chunks.length} 个切片`);
-  return indexCache.chunks;
+  if (indexLoading) return indexLoading;
+  indexLoading = (async () => {
+    const resp = await fetch(INDEX_URL, { signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) throw new Error(`索引下载失败 HTTP ${resp.status}`);
+    const data = await resp.json();
+    indexCache = { at: Date.now(), chunks: data.chunks || [] };
+    console.log(`[chat] 索引已加载 ${indexCache.chunks.length} 个切片`);
+    return indexCache.chunks;
+  })().finally(() => {
+    indexLoading = null;
+  });
+  return indexLoading;
 }
+
+// 实例启动时预热索引，避免第一次提问再等下载
+loadIndex().catch((e) => console.warn('[chat] 索引预热失败:', e.message));
 
 /* ---------------- 关键词检索 ---------------- */
 /** 查询拆词：英文词 + 连续中文 bigram */
@@ -141,7 +151,12 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 读取请求体
+  // 读 body 与拉索引并行，缩短首字前等待
+  const indexPromise = loadIndex().catch((e) => {
+    console.warn('[chat] 检索失败，降级为通用回答:', e.message);
+    return [];
+  });
+
   let payload;
   try {
     payload = JSON.parse(await readBody(req));
@@ -158,10 +173,9 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 检索相关内容
   let hits = [];
   try {
-    const chunks = await loadIndex();
+    const chunks = await indexPromise;
     hits = search(chunks, question);
   } catch (e) {
     console.warn('[chat] 检索失败，降级为通用回答:', e.message);
@@ -206,7 +220,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: GLM_MODEL,
         messages: [{ role: 'system', content: system }, ...recent],
-        thinking: { type: 'disabled' }, // 站内问答无需深度思考，关闭以加快首字响应
+        thinking: { type: 'enabled' },
         stream: true,
       }),
       signal: AbortSignal.timeout(60000),
