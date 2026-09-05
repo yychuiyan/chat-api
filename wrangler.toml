@@ -1,0 +1,15 @@
+name = "docs-chat-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# 部署后在 Cloudflare Dashboard → Workers → docs-chat-api → Settings → Domains & Routes
+# 添加路由：docs.yychuiyan.com/api/chat*
+# 若本账号已托管 yychuiyan.com，也可取消下面注释直接发布路由：
+# routes = [{ pattern = "docs.yychuiyan.com/api/chat*", zone_name = "yychuiyan.com" }]
+
+[vars]
+DS_MODEL = "deepseek-v4-flash"
+INDEX_URL = "https://docs.yychuiyan.com/ai-index.json"
+
+# 密钥不要写在这里，用：
+# npx wrangler secret put DEEPSEEK_API_KEY
