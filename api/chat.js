@@ -206,6 +206,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: GLM_MODEL,
         messages: [{ role: 'system', content: system }, ...recent],
+        thinking: { type: 'disabled' }, // 站内问答无需深度思考，关闭以加快首字响应
         stream: true,
       }),
       signal: AbortSignal.timeout(60000),
