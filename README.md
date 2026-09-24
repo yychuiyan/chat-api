@@ -1,6 +1,6 @@
 # 炊烟小站 · 站内问答 API
 
-Cloudflare Worker，给 [炊烟小站](https://docs.yychuiyan.com/) 右下角「问AI」用。只根据站内 `ai-index.json` 里的文章切片回答，不把 Key 写进前端或本仓库。
+Cloudflare Worker，给 [炊烟小站](https://docs.yychuiyan.com/) 右下角那只猫（站内问答入口）用。只根据站内 `ai-index.json` 里的文章切片回答，不把 Key 写进前端或本仓库。
 
 线上入口：`https://docs.yychuiyan.com/api/chat`
 
